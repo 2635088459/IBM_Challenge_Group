@@ -1,0 +1,16 @@
+{
+  "fields": {
+    "line_sku": "SKU-ELEC-7788",
+    "line_quantity": 480,
+    "package_count": 24,
+    "gross_weight": 120.0
+  },
+  "confidence_scores": {
+    "line_sku": 0.91,
+    "line_quantity": 0.96,
+    "package_count": 0.90,
+    "gross_weight": 0.88
+  },
+  "_fixture": true,
+  "_scenario": "C02 — Quantity Mismatch (Packing List side: 480 units)"
+}

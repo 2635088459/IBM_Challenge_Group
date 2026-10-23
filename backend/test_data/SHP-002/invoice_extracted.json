@@ -1,0 +1,20 @@
+{
+  "fields": {
+    "invoice_number": "INV-2026-0042",
+    "shipper_name": "ACME Electronics Co. Ltd.",
+    "line_sku": "SKU-ELEC-7788",
+    "line_quantity": 500,
+    "unit_price": 12.50,
+    "total_amount": 6250.00
+  },
+  "confidence_scores": {
+    "invoice_number": 0.95,
+    "shipper_name": 0.88,
+    "line_sku": 0.92,
+    "line_quantity": 0.97,
+    "unit_price": 0.94,
+    "total_amount": 0.96
+  },
+  "_fixture": true,
+  "_scenario": "C02 — Quantity Mismatch (Invoice side: 500 units)"
+}
