@@ -1,0 +1,10 @@
+# Secrets — never commit
+.env
+**/.env
+!.env.example
+
+# Local environments / caches
+**/.venv/
+**/__pycache__/
+**/node_modules/
+**/.next/
