@@ -1,9 +1,8 @@
-// lib/socket.ts — Socket.IO client singleton
-// Connects to the backend WebSocket and exposes typed subscription helpers.
-
-import { io, Socket } from "socket.io-client";
-
-const WS_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+// lib/socket.ts — Socket.IO client (gracefully disabled when server is unavailable)
+//
+// The backend API is plain FastAPI — Socket.IO is not mounted in the Docker demo.
+// This module provides the same subscription interface but silently no-ops so the
+// console stays clean.  When a real Socket.IO server is added, remove the guard.
 
 export interface AgentStateUpdate {
   shipment_id: string;
@@ -14,41 +13,40 @@ export interface AgentStateUpdate {
   timestamp: string;
 }
 
-let socket: Socket | null = null;
+// Feature-flag: set NEXT_PUBLIC_ENABLE_SOCKETIO=true to attempt a real connection.
+const ENABLED = process.env.NEXT_PUBLIC_ENABLE_SOCKETIO === "true";
 
-/** Return the singleton Socket.IO client, creating it on first call. */
-export function getSocket(): Socket {
-  if (!socket) {
-    socket = io(WS_URL, {
-      path: "/ws/socket.io",
-      transports: ["websocket"],
-      autoConnect: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 2000,
-    });
-    socket.on("connect", () =>
-      console.log("[Socket.IO] connected:", socket?.id)
-    );
-    socket.on("disconnect", (reason) =>
-      console.warn("[Socket.IO] disconnected:", reason)
-    );
-    socket.on("connect_error", (err) =>
-      console.error("[Socket.IO] connect_error:", err.message)
-    );
-  }
-  return socket;
-}
+type Handler = (update: AgentStateUpdate) => void;
+const _listeners = new Map<string, Set<Handler>>();
 
-/** Subscribe to agent_state_update events for a specific shipment. */
+/** Subscribe to agent_state_update events for a specific shipment.
+ *  Returns an unsubscribe function (called on component unmount). */
 export function subscribeAgentState(
   shipmentId: string,
-  handler: (update: AgentStateUpdate) => void
+  handler: Handler
 ): () => void {
-  const s = getSocket();
-  const wrapped = (update: AgentStateUpdate) => {
-    if (update.shipment_id === shipmentId) handler(update);
+  if (!ENABLED) {
+    // No-op: Socket.IO server not running in this deployment.
+    return () => {};
+  }
+
+  // Lazy-load socket.io-client only when the feature is enabled.
+  import("socket.io-client").then(({ io }) => {
+    const WS_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+    const socket = io(WS_URL, {
+      path: "/ws/socket.io",
+      transports: ["websocket"],
+      reconnectionAttempts: 3,
+      reconnectionDelay: 3000,
+    });
+    socket.on("agent_state_update", (update: AgentStateUpdate) => {
+      if (update.shipment_id === shipmentId) handler(update);
+    });
+    if (!_listeners.has(shipmentId)) _listeners.set(shipmentId, new Set());
+    _listeners.get(shipmentId)!.add(handler);
+  });
+
+  return () => {
+    _listeners.get(shipmentId)?.delete(handler);
   };
-  s.on("agent_state_update", wrapped);
-  // return unsubscribe function
-  return () => s.off("agent_state_update", wrapped);
 }

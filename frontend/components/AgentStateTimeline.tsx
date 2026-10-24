@@ -51,7 +51,8 @@ export default function AgentStateTimeline({ shipmentId, initialEvents = [] }: P
   if (!events.length) {
     return (
       <p className="text-xs text-gray-400 italic py-2">
-        No state transitions yet. Waiting for agent activity…
+        Click <span className="font-medium text-gray-500">▶ Run Agent</span> above to start the agent.
+        Its state transitions will appear here after the run.
       </p>
     );
   }

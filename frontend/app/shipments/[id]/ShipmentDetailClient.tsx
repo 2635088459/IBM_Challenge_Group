@@ -74,6 +74,8 @@ export default function ShipmentDetailClient() {
   const [agentResult, setAgentResult] = useState<AgentRunResult | null>(null);
   const [agentError, setAgentError] = useState<string | null>(null);
   const [simulateDiscrepancy, setSimulateDiscrepancy] = useState(false);
+  // Bumped after each run so the timeline remounts with that run's transitions
+  const [runCount, setRunCount] = useState(0);
 
   function handleResolved(updated: Approval) {
     setResolvedIds((prev) => new Set([...prev, updated.id]));
@@ -88,6 +90,7 @@ export default function ShipmentDetailClient() {
     try {
       const result = await runAgent(id, simulateDiscrepancy);
       setAgentResult(result);
+      setRunCount((n) => n + 1);
       // Refresh shipment + approvals after agent run
       mutateShipment();
       mutateApprovals();
@@ -209,11 +212,31 @@ export default function ShipmentDetailClient() {
         {/* ── LLM Analysis + FSM trace (shown after a run) ── */}
         {agentResult && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* LLM Analysis */}
+
+            {/* No-LLM path: agent resolved without needing GPT (e.g. C01 missing doc) */}
+            {!agentResult.llm_analysis && (
+              <section className="lg:col-span-2 bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
+                <h3 className="text-sm font-semibold text-gray-700 mb-1 uppercase tracking-wide">
+                  Agent Analysis
+                </h3>
+                <p className="text-xs text-gray-500">
+                  The agent resolved this shipment without invoking the LLM —
+                  a missing or incomplete document was detected during the{" "}
+                  <span className="font-mono text-gray-700">OBSERVE</span> state
+                  and the shipment was moved to{" "}
+                  <span className="font-mono text-gray-700">
+                    {agentResult.final_state}
+                  </span>{" "}
+                  automatically. No AI reasoning was required.
+                </p>
+              </section>
+            )}
+
+            {/* LLM Analysis — only shown when GPT ran (discrepancy / CBP hold path) */}
             {agentResult.llm_analysis && (
               <section className="bg-white rounded-lg border border-blue-200 p-6 shadow-sm">
                 <h3 className="text-sm font-semibold text-blue-800 mb-3 uppercase tracking-wide">
-                  🤖 GPT Analysis
+                  Agent Analysis
                 </h3>
                 <ul className="space-y-2">
                   {agentResult.llm_analysis.split("\n").filter(Boolean).map((line, i) => (
@@ -229,7 +252,7 @@ export default function ShipmentDetailClient() {
             {agentResult.proposed_actions && agentResult.proposed_actions.length > 0 && (
               <section className="bg-white rounded-lg border border-purple-200 p-6 shadow-sm">
                 <h3 className="text-sm font-semibold text-purple-800 mb-3 uppercase tracking-wide">
-                  📋 Proposed Actions
+                  Proposed Actions
                 </h3>
                 <div className="space-y-2">
                   {agentResult.proposed_actions.map((action, i) => (
@@ -321,9 +344,20 @@ export default function ShipmentDetailClient() {
             <section className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
               <h3 className="text-sm font-semibold text-gray-900 mb-3 uppercase tracking-wide">
                 Agent State
-                <span className="ml-2 inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                <span
+                  className={`ml-2 inline-block w-2 h-2 rounded-full ${
+                    agentRunning ? "bg-green-400 animate-pulse" : agentResult ? "bg-green-400" : "bg-gray-300"
+                  }`}
+                />
               </h3>
-              <AgentStateTimeline shipmentId={shipment.id} />
+              <AgentStateTimeline
+                key={runCount}
+                shipmentId={shipment.id}
+                initialEvents={(agentResult?.transitions ?? []).map((t) => ({
+                  ...t,
+                  shipment_id: shipment.id,
+                }))}
+              />
             </section>
 
             {/* Pending approvals */}
