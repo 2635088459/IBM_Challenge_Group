@@ -12,3 +12,4 @@
 # Deploy secrets (generated)
 deploy/Caddyfile
 deploy/.credentials
+backend/evidence_store/

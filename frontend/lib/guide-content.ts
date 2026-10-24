@@ -16,7 +16,7 @@ export const SCENARIOS: Scenario[] = [
     title: "Quantity mismatch → human approval",
     shows: "The AI finds the problem and proposes a fix, but a human must approve before anything happens.",
     steps: [
-      "Tick “Simulate qty mismatch” and click ▶ Run Agent.",
+      "Click ▶ Run Agent. The agent compares the invoice with the packing list and spots the difference itself.",
       "Read the Agent Analysis (invoice says 500, packing list says 480) and the Proposed Actions.",
       "The state machine stops at “Wait for Human”. Approve every card under Pending Approvals.",
       "Watch the agent resume: Policy Check → Act → Verify → Cleared ✓.",
@@ -67,7 +67,7 @@ export const AUDIT_CHAIN_STEPS = [
 export const HELP: Record<string, { title: string; body: string }> = {
   runControls: {
     title: "Run the agent",
-    body: "▶ Run Agent starts the AI agent on this shipment. The checkboxes switch on demo situations: a quantity mismatch between invoice and packing list, or a prompt-injection attack hidden in the supplier’s invoice.",
+    body: "▶ Run Agent starts the AI agent on this shipment: it checks the documents, and if something is wrong it asks the AI for a plan. The red Red-team box adds a prompt-injection attack hidden in the supplier’s invoice.",
   },
   cbpFeed: {
     title: "Mock CBP feed",

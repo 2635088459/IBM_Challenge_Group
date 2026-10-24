@@ -2,7 +2,7 @@
 Seed script — restores the 3 synthetic demo shipments to their initial state.
 
   SHP-001 (C01): COLLECT_DATA  — missing Commercial Invoice
-  SHP-002 (C02): ESCALATE      — Invoice qty=500 vs Packing List qty=480
+  SHP-002 (C02): OBSERVE       — Invoice qty=500 vs Packing List qty=480, agent not run yet
   SHP-003 (C09): CUSTOMS_HOLD  — CBP hold event already ingested
 
 Shipment ids are kept across runs (see db/demo_data.py), so open pages stay valid.

@@ -24,6 +24,7 @@ from api.main import app
 from api.models.models import Shipment, Document, AgentAction, AuditLog
 import agent.llm_client as llm
 import agent.tools as tools
+import documents.consistency as consistency
 
 ENGINE = create_engine("sqlite:///./test_integration_resume.db", connect_args={"check_same_thread": False})
 
@@ -53,6 +54,8 @@ def setup(monkeypatch):
     monkeypatch.setattr(llm, "reason", llm._mock_reason)
     monkeypatch.setattr(llm, "plan", llm._mock_plan)
     monkeypatch.setattr(tools, "get_shipment_status", _shipment_from_db)
+    monkeypatch.setattr(tools, "compare_documents", _compare_via_test_client)
+    monkeypatch.setattr(consistency, "emit_discrepancy_event", lambda *_a, **_k: None)
     yield
     app.dependency_overrides.clear()
     Base.metadata.drop_all(bind=ENGINE)
@@ -72,6 +75,12 @@ def _shipment_from_db(shipment_id: str) -> dict:
     }
     db.close()
     return data
+
+
+def _compare_via_test_client(shipment_id: str, invoice_id: str, packing_list_id: str) -> dict:
+    return client.post("/api/documents/consistency-check", json={
+        "shipment_id": shipment_id, "invoice_doc_id": invoice_id, "packing_list_doc_id": packing_list_id,
+    }).json()
 
 
 def _seed_shipment(status: str = "OBSERVE") -> str:
@@ -379,8 +388,9 @@ class TestDemoReset:
         r = client.post(f"/api/demo/reset/{sid}")
         assert r.status_code == 200
         assert r.json()["reset"] == {"SHP-002": sid}  # same id — open pages keep working
-        assert _shipment_status(sid) == "ESCALATE"
+        assert _shipment_status(sid) == "OBSERVE"
         assert _agent_states(sid) == []
+        assert _pending(sid) == []  # approvals only appear once the agent proposes a plan
         assert client.get(f"/api/audit-logs/{sid}/verify").json()["valid"] is True
 
         # …and the demo can be played again
@@ -399,3 +409,16 @@ class TestDemoReset:
 
     def test_reset_rejects_non_demo_shipment(self):
         assert client.post(f"/api/demo/reset/{_seed_shipment()}").status_code == 404
+
+    def test_shp002_finds_the_mismatch_without_simulation(self):
+        """The real C02 path: the agent compares the documents itself."""
+        sid = client.post("/api/demo/reset").json()["reset"]["SHP-002"]
+        r = client.post("/api/agent/run", json={"shipment_id": sid})
+        assert r.status_code == 200, r.text
+
+        assert r.json()["final_state"] == "WAIT_EVENT"
+        assert "DISCREPANCY_DETECTED" in [t["event"] for t in r.json()["transitions"]]
+        assert _pending(sid)  # the agent's own plan is waiting for approval
+        docs = client.get(f"/api/shipments/{sid}").json()["documents"]
+        # Mismatched documents are not marked verified
+        assert {d["status"] for d in docs if d["doc_type"] != "BILL_OF_LADING"} == {"extracted"}

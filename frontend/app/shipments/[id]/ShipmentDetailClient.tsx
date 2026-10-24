@@ -127,7 +127,6 @@ export default function ShipmentDetailClient() {
   const [agentRunning, setAgentRunning] = useState(false);
   const [agentResult, setAgentResult] = useState<AgentRunResult | null>(null);
   const [agentError, setAgentError] = useState<string | null>(null);
-  const [simulateDiscrepancy, setSimulateDiscrepancy] = useState(false);
   const [redTeam, setRedTeam] = useState(false);
   const [cbpNotice, setCbpNotice] = useState<string | null>(null);
   const [tourOpen, setTourOpen] = useState(false);
@@ -170,7 +169,7 @@ export default function ShipmentDetailClient() {
     setAgentError(null);
     setAgentResult(null);
     try {
-      const result = await runAgent(id, simulateDiscrepancy, redTeam);
+      const result = await runAgent(id, false, redTeam);
       setAgentResult(result);
       // Refresh shipment + approvals + agent history after agent run
       mutateShipment();
@@ -326,17 +325,6 @@ export default function ShipmentDetailClient() {
                 </span>
               ) : "▶ Run Agent"}
             </button>
-
-            {/* Simulate discrepancy toggle — for C02 demo */}
-            <label className="flex items-center gap-2 text-xs text-gray-500 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={simulateDiscrepancy}
-                onChange={(e) => setSimulateDiscrepancy(e.target.checked)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              Simulate qty mismatch (C02 demo)
-            </label>
 
             {/* Red-team toggle — prompt injection hidden in supplier invoice text */}
             <label className="flex items-center gap-2 text-xs text-red-600 cursor-pointer select-none">

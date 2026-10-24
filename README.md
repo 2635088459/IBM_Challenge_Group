@@ -1,18 +1,18 @@
-# 🚢 AI Customs Clearance
+# AI Customs Clearance
 
 **An AI agent that clears shipments through customs, combined with firm rules it cannot get around.**
 
-### 👉 Try it live: **[https://136-117-122-30.sslip.io](https://136-117-122-30.sslip.io)**
+### Try it live: **[https://136-117-122-30.sslip.io](https://136-117-122-30.sslip.io)**
 
 > If that link is blocked on your network, use the backup address: **[http://136.117.122.30](http://136.117.122.30)**
 > (your browser may say "Not secure"; that's expected for this address).
 >
-> No login needed. Start on the home page, pick a demo card and follow the steps. Every page has a guided tour and a **📖 Guide**.
-> All data is synthetic, and every demo can be replayed with **↺ Reset demo**.
+> No login needed. Start on the home page, pick a demo card and follow the steps. Every page has a guided tour and a **Guide**.
+> All data is synthetic, and every demo can be replayed with **Reset demo**.
 
 ---
 
-## 👥 Who it's for
+## Who it's for
 
 | User | What they get |
 |---|---|
@@ -21,7 +21,7 @@
 | **Importers & logistics companies** | Faster clearance, fewer containers stuck at the port |
 | **Auditors & regulators** | A complete, tamper-evident record of every decision: who decided what, and why |
 
-## ❗ The problem
+## The problem
 
 Every shipment entering a country must clear customs. Before it is released, someone has to check that the **invoice**, **packing list** and **bill of lading** all agree, and that nothing is missing.
 
@@ -29,7 +29,7 @@ Every shipment entering a country must clear customs. Before it is released, som
 - A single mismatch, such as an invoice saying 500 units when the packing list says 480, can leave a container **stuck at the port for days**, with storage fees growing every day.
 - AI could do most of this work, but businesses **don't trust AI to make customs decisions on its own**: it can make mistakes, and it can be **tricked** by text hidden in a document.
 
-## ✅ Our solution
+## Our solution
 
 An AI agent that does the work, while **the final say on anything important stays with rules and people**:
 
@@ -49,7 +49,7 @@ An AI agent that does the work, while **the final say on anything important stay
 | **Missing document** (SHP-001) | Simple problems are handled by rules alone, with no AI needed |
 | **Audit chain** (any shipment) | Secretly editing a past record breaks the chain at exactly that entry |
 
-## 🌟 Benefits
+## Benefits
 
 - **Faster clearance:** problems are found and explained in seconds instead of hours.
 - **Safe by design:** the AI *cannot* release a customs hold, edit document values, or skip a required approval. These limits are enforced in code, not by asking the AI nicely.
@@ -58,7 +58,7 @@ An AI agent that does the work, while **the final say on anything important stay
 - **Provable accountability:** a tamper-evident audit trail and a live diagram show what the agent did and why it stopped.
 - **Honest about the AI:** the screen shows whether an answer came from the **live AI** or an **offline fallback**, so a broken AI connection can't pass as a working one.
 
-## 🧗 Challenges we faced
+## Challenges we faced
 
 - **Silent failures:** approval requests were failing quietly because of a database error, so the agent looked like it was waiting for a human with nothing to approve. Our tests now use a database that behaves like the real one.
 - **An agent with no memory:** it forgot everything between steps, so we made it save its progress and resume after approvals.
@@ -69,7 +69,7 @@ An AI agent that does the work, while **the final say on anything important stay
 
 More detail is in our project story: [PROJECT_STORY.md](PROJECT_STORY.md).
 
-## 🔭 Future work
+## Future work
 
 - **IBM watsonx Granite** working alongside a second AI model, with any disagreement sent to a human.
 - **Role-based logins**, so each person can approve only their own kind of decision.
@@ -77,7 +77,7 @@ More detail is in our project story: [PROJECT_STORY.md](PROJECT_STORY.md).
 - **Real document uploads with OCR**, so the agent resumes automatically when a missing document arrives.
 - **Publishing the audit chain's latest fingerprint externally**, so even someone with full database access can't rewrite history unnoticed.
 
-## 🧰 Technology
+## Technology
 
 | Layer | Technology |
 |---|---|
@@ -102,7 +102,7 @@ More detail is in our project story: [PROJECT_STORY.md](PROJECT_STORY.md).
 
 Only the website is reachable from the internet; the API, database and Redis are private.
 
-## 🚀 Run it yourself
+## Run it yourself
 
 **Requirements:** Docker, plus an OpenAI API key (optional; without one, the agent runs in demo mode with built-in answers).
 
@@ -118,10 +118,10 @@ Open **http://localhost:3000**.
 | Task | Command |
 |---|---|
 | Run the backend tests | `make test` |
-| Reset the demo data | `make seed`, or **↺ Reset all demos** on the home page |
+| Reset the demo data | `make seed`, or **Reset all demos** on the home page |
 | Deploy to Google Cloud | `./deploy/gcp-deploy.sh` (see the comments at the top of the script) |
 
-> ⚠️ Never commit `backend/.env`; it holds your API keys. It is already listed in `.gitignore`.
+> Never commit `backend/.env`; it holds your API keys. It is already listed in `.gitignore`.
 
 ---
 

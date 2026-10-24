@@ -222,9 +222,10 @@ def consistency_check(
         emit_event=True,
     )
 
-    # Update both documents to "verified" status
-    for doc in [invoice_doc, pl_doc]:
-        doc.status = "verified"
+    # Documents count as verified only when they agree with each other
+    if result["overall_status"] == "PASS":
+        for doc in [invoice_doc, pl_doc]:
+            doc.status = "verified"
     db.add(AuditLog(
         id=str(uuid.uuid4()),
         shipment_id=shipment_id,

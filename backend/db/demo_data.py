@@ -2,7 +2,7 @@
 db/demo_data.py — The three demo shipments, and resetting them in place.
 
   SHP-001 (C01): COLLECT_DATA  — missing Commercial Invoice
-  SHP-002 (C02): ESCALATE      — Invoice qty=500 vs Packing List qty=480
+  SHP-002 (C02): OBSERVE       — all documents in; invoice says 500 units, packing list 480
   SHP-003 (C09): CUSTOMS_HOLD  — CBP hold event already ingested
 
 A reset keeps each shipment's id (so open pages and shared links stay valid)
@@ -11,8 +11,10 @@ Used by scripts/seed.py and the "Reset demo" buttons (POST /api/demo/reset…).
 """
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Callable
 
 from sqlalchemy.orm import Session
@@ -20,6 +22,9 @@ from sqlalchemy.orm import Session
 from api.models.models import (
     AgentAction, AgentTask, Approval, AuditLog, Document, Event, OutboxEntry, Shipment,
 )
+from documents import evidence_store
+
+_SHP002_FIXTURES = Path(__file__).parent.parent / "test_data" / "SHP-002"
 
 
 def _uid() -> str:
@@ -43,31 +48,22 @@ def _build_shp001(db: Session, sid: str) -> str:
 
 
 def _build_shp002(db: Session, sid: str) -> str:
-    """C02 — Invoice 500 vs Packing List 480, approvals already requested."""
-    db.add(Document(id=_uid(), shipment_id=sid, doc_type="INVOICE",
-                    file_hash="inv_hash_002", version=1, status="verified"))
-    db.add(Document(id=_uid(), shipment_id=sid, doc_type="PACKING_LIST",
-                    file_hash="pl_hash_002", version=1, status="verified"))
-    task_id = _uid()
-    db.add(AgentTask(id=task_id, shipment_id=sid, state="ESCALATE"))
-    db.flush()
-    action_id = _uid()
-    db.add(AgentAction(
-        id=action_id, task_id=task_id, action_type="REQUEST_HUMAN_APPROVAL",
-        idempotency_key=f"approval-shp002-{_uid()[:8]}",
-        payload={"discrepancy": {"field": "line_quantity", "invoice_value": 500,
-                                 "packing_list_value": 480, "delta": 20}},
-        status="PENDING",
-    ))
-    db.flush()
-    for role in ("R2", "R3"):
-        db.add(Approval(id=_uid(), action_id=action_id, shipment_id=sid, role=role,
-                        status="PENDING", payload_hash="sha256-shp002-discrepancy"))
-    db.add(AuditLog(shipment_id=sid, actor="agent", event="DOCUMENT_DISCREPANCY_DETECTED",
-                    details={"field": "line_quantity", "invoice": 500, "packing_list": 480}))
-    db.add(AuditLog(shipment_id=sid, actor="agent", event="APPROVAL_REQUESTED",
-                    details={"roles": ["R2", "R3"], "reason": "quantity_mismatch"}))
-    return "ESCALATE"
+    """
+    C02 — every document is in, but the invoice says 500 units and the packing
+    list 480.  Nothing is flagged yet: the agent finds the mismatch itself by
+    comparing the extracted fields, then proposes a plan (approvals appear then).
+    """
+    for doc_type, fixture, file_hash in (
+        ("INVOICE", "invoice_extracted.json", "inv_hash_002"),
+        ("PACKING_LIST", "packing_list_extracted.json", "pl_hash_002"),
+    ):
+        doc_id = _uid()
+        db.add(Document(id=doc_id, shipment_id=sid, doc_type=doc_type,
+                        file_hash=file_hash, version=1, status="extracted"))
+        evidence_store.save_extracted(doc_id, json.loads((_SHP002_FIXTURES / fixture).read_text()))
+    db.add(Document(id=_uid(), shipment_id=sid, doc_type="BILL_OF_LADING",
+                    file_hash="bl_hash_002", version=1, status="extracted"))
+    return "OBSERVE"
 
 
 def _build_shp003(db: Session, sid: str) -> str:

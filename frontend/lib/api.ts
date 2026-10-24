@@ -49,6 +49,15 @@ export interface AuditLogEntry {
   timestamp: string;
 }
 
+/**
+ * The API stores UTC but sends timestamps without a zone ("2026-10-24T01:02:03").
+ * `new Date()` would read those as the viewer's local time — e.g. "-420m ago" in
+ * California — so treat any zone-less timestamp as UTC.
+ */
+export function parseApiDate(iso: string): Date {
+  return new Date(/(Z|[+-]\d{2}:?\d{2})$/.test(iso) ? iso : `${iso}Z`);
+}
+
 // ── Fetch helpers ─────────────────────────────────────────────────────────────
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {

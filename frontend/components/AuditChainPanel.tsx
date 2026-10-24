@@ -3,7 +3,7 @@
 "use client";
 
 import { useState } from "react";
-import { AuditChainResult, verifyAuditChain, tamperAuditDemo } from "@/lib/api";
+import { AuditChainResult, verifyAuditChain, tamperAuditDemo, parseApiDate } from "@/lib/api";
 
 const BLOCK_STYLE: Record<string, string> = {
   ok:          "bg-green-500",
@@ -21,7 +21,7 @@ const BLOCK_LABEL: Record<string, string> = {
 
 function fmtTime(iso: string) {
   try {
-    return new Date(iso + (iso.endsWith("Z") ? "" : "Z")).toLocaleTimeString();
+    return parseApiDate(iso).toLocaleTimeString();
   } catch {
     return iso;
   }

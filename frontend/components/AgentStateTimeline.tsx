@@ -4,6 +4,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { subscribeAgentState, AgentStateUpdate } from "@/lib/socket";
+import { parseApiDate } from "@/lib/api";
 
 interface Props {
   shipmentId: string;
@@ -26,7 +27,7 @@ function dot(state: string) {
 
 function fmtTime(iso: string) {
   try {
-    return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    return parseApiDate(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   } catch {
     return iso;
   }

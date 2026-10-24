@@ -161,7 +161,7 @@ class AgentRunner:
         packing_list = next((d for d in docs if d["doc_type"] == "PACKING_LIST"), None)
         if invoice and packing_list:
             try:
-                result = tools.compare_documents(invoice["id"], packing_list["id"])
+                result = tools.compare_documents(self.shipment_id, invoice["id"], packing_list["id"])
                 if result.get("overall_status") == "FAIL":
                     self.fsm.context["has_discrepancy"] = True
                     self.fsm.context["discrepancy_detail"] = result.get("mismatches", [])

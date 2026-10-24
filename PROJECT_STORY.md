@@ -1,6 +1,6 @@
 # AI Customs Clearance: an AI that does the work but can't break the rules
 
-## 💡 What inspired us
+## What inspired us
 
 Every product that crosses a border has to get through customs. Before a shipment is released, someone has to check a small pile of paperwork: the **invoice** (what was bought), the **packing list** (what is actually in the boxes) and the **bill of lading** (the shipping receipt).
 
@@ -12,7 +12,7 @@ AI is good at reading documents and spotting mistakes, so it seemed natural to l
 
 Most people say *no*, and they're right. AI can be wrong, and it can be **tricked**. Our idea was to build an AI agent that does most of the work, **combined with firm rules it cannot get around**. The AI suggests; the rules and the people decide.
 
-## 🚢 What it does
+## What it does
 
 Our AI agent looks after each shipment from start to finish:
 
@@ -24,7 +24,7 @@ Our AI agent looks after each shipment from start to finish:
 
 The website shows all of this as it happens. A diagram lights up the step the agent is on, so anyone can see what it is doing and why it stopped.
 
-## 🛠️ How we built it
+## How we built it
 
 Think of the system as four parts working together:
 
@@ -92,7 +92,7 @@ To help first-time visitors, we added a step-by-step **guided tour**, a **"?"** 
 
 The whole system runs in containers on a **Google Cloud** server, with a secure HTTPS connection. It is backed by **108 automated tests** that check the rules hold.
 
-## 🧗 Challenges we faced
+## Challenges we faced
 
 Each of these taught us something:
 
@@ -105,7 +105,7 @@ Each of these taught us something:
 - **Some networks blocked our web address.** We added a second, plain-IP address as a backup.
 - **Judges found the screen confusing.** The ideas were strong, but a first-time visitor didn't know where to click. That feedback led to the tour, the help tips, the user guide and the reset button.
 
-## 📚 What we learned
+## What we learned
 
 - **"AI proposes, rules decide."** You can trust AI with a lot of work, as long as the *final say* over dangerous actions belongs to simple, predictable rules and accountable people.
 - **Assume the AI can be fooled.** Instead of hoping the AI resists tricks, we designed the system so that being tricked does no harm.
@@ -114,7 +114,7 @@ Each of these taught us something:
 - **Keep secrets secret.** Passwords and keys must never be uploaded with the code.
 - **Clear explanations are part of the product.** A good idea only counts if people can understand it in a minute.
 
-## 🔭 What's next
+## What's next
 
 - Use **IBM watsonx Granite** alongside a second AI model, and send a case to a human whenever the two disagree.
 - **Role-based logins**, so each person can approve only the decisions that belong to them.

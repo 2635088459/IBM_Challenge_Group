@@ -4,14 +4,14 @@
 
 import Link from "next/link";
 import useSWR from "swr";
-import { fetcher, ShipmentListItem } from "@/lib/api";
+import { fetcher, ShipmentListItem, parseApiDate } from "@/lib/api";
 import StatusBadge from "./StatusBadge";
 
 // Same-origin by default: next.config.ts proxies /api/* to the backend
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 function timeAgo(isoDate: string): string {
-  const diff = Date.now() - new Date(isoDate).getTime();
+  const diff = Date.now() - parseApiDate(isoDate).getTime();
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return "just now";
   if (mins < 60) return `${mins}m ago`;

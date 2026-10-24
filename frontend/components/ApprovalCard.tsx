@@ -3,7 +3,7 @@
 "use client";
 
 import { useState } from "react";
-import { Approval, updateApproval } from "@/lib/api";
+import { Approval, updateApproval, parseApiDate } from "@/lib/api";
 import StatusBadge from "./StatusBadge";
 
 const ROLE_LABELS: Record<string, string> = {
@@ -23,7 +23,7 @@ interface Props {
 }
 
 function ageMinutes(isoDate: string): number {
-  return Math.floor((Date.now() - new Date(isoDate).getTime()) / 60000);
+  return Math.floor((Date.now() - parseApiDate(isoDate).getTime()) / 60000);
 }
 
 function formatAge(mins: number): string {

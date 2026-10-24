@@ -1,6 +1,7 @@
 // app/page.tsx — Shipment List (Home)
 
 import ShipmentTable from "@/components/ShipmentTable";
+import StatusBadge from "@/components/StatusBadge";
 import SiteHeader from "@/components/SiteHeader";
 import { ScenarioCards } from "@/components/ScenarioGuide";
 
@@ -29,13 +30,16 @@ export default function HomePage() {
         <div className="mt-6 flex flex-wrap gap-3 text-xs text-gray-500">
           <span className="font-semibold">Status key:</span>
           {[
-            ["OBSERVE", "bg-gray-100 text-gray-600"],
-            ["ESCALATE", "bg-orange-100 text-orange-700"],
-            ["CUSTOMS_HOLD", "bg-red-100 text-red-700"],
-            ["CLEARANCE_VERIFIED", "bg-green-100 text-green-700"],
-          ].map(([label, cls]) => (
-            <span key={label} className={`rounded-full px-2 py-0.5 font-medium ${cls}`}>
-              {label}
+            ["OBSERVE", "not checked by the agent yet"],
+            ["COLLECT_DATA", "a required document is missing"],
+            ["WAIT_EVENT", "a person must approve the agent’s plan"],
+            ["CUSTOMS_HOLD", "U.S. Customs stopped the shipment"],
+            ["RECOVER", "the plan was blocked or rejected"],
+            ["CLEARANCE_VERIFIED", "done"],
+          ].map(([status, meaning]) => (
+            <span key={status} className="inline-flex items-center gap-1">
+              <StatusBadge status={status} size="sm" />
+              <span>{meaning}</span>
             </span>
           ))}
         </div>

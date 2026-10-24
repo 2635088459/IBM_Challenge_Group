@@ -49,7 +49,7 @@ def get_shipment_status(shipment_id: str) -> dict[str, Any]:
 
 # ── Tool: compare_documents ───────────────────────────────────────────────────
 
-def compare_documents(doc_a_id: str, doc_b_id: str) -> dict[str, Any]:
+def compare_documents(shipment_id: str, doc_a_id: str, doc_b_id: str) -> dict[str, Any]:
     """
     Call M4's document consistency-check endpoint to compare two documents.
 
@@ -71,7 +71,7 @@ def compare_documents(doc_a_id: str, doc_b_id: str) -> dict[str, Any]:
     try:
         resp = _client.post(
             "/api/documents/consistency-check",
-            json={"invoice_doc_id": doc_a_id, "packing_list_doc_id": doc_b_id},
+            json={"shipment_id": shipment_id, "invoice_doc_id": doc_a_id, "packing_list_doc_id": doc_b_id},
         )
         resp.raise_for_status()
         return resp.json()

@@ -26,12 +26,28 @@ const STATUS_STYLES: Record<string, string> = {
   EXPIRED:            "bg-gray-100 text-gray-500",
 };
 
+// Plain-language names for shipment states (approval states read fine as-is)
+export const STATUS_LABELS: Record<string, string> = {
+  OBSERVE:            "Awaiting review",
+  REASON:             "Agent working",
+  PLAN:               "Agent working",
+  POLICY_CHECK:       "Agent working",
+  ACT:                "Executing plan",
+  VERIFY:             "Verifying",
+  WAIT_EVENT:         "Waiting for human",
+  COLLECT_DATA:       "Missing documents",
+  ESCALATE:           "Escalated",
+  CUSTOMS_HOLD:       "CBP hold",
+  RECOVER:            "Blocked — needs review",
+  CLEARANCE_VERIFIED: "Cleared",
+};
+
 export default function StatusBadge({ status, size = "md" }: Props) {
   const style = STATUS_STYLES[status] ?? "bg-gray-100 text-gray-600";
   const padding = size === "sm" ? "px-2 py-0.5 text-xs" : "px-2.5 py-1 text-xs";
   return (
     <span className={`inline-flex items-center rounded-full font-medium ${padding} ${style}`}>
-      {status.replace(/_/g, " ")}
+      {STATUS_LABELS[status] ?? status.replace(/_/g, " ")}
     </span>
   );
 }
