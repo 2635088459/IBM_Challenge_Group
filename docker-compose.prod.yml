@@ -1,0 +1,50 @@
+# Production overrides for the cloud VM (see deploy/gcp-deploy.sh):
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Only Caddy is reachable from the internet (80/443, password-protected, HTTPS).
+# Postgres, Redis, the API and the Next server are on the internal network only.
+services:
+  db:
+    ports: !reset []
+    restart: always
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    ports: !reset []
+    restart: always
+
+  api:
+    # No --reload and no source mount: run the code baked into the image
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --workers 2
+    ports: !reset []
+    volumes: !override
+      - evidence:/app/evidence_store
+    restart: always
+
+  worker:
+    volumes: !override
+      - evidence:/app/evidence_store
+    restart: always
+
+  frontend:
+    ports: !reset []
+    restart: always
+
+  caddy:
+    image: caddy:2.8
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Generated on the VM by deploy/gcp-deploy.sh (holds the password hash)
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      - frontend
+
+volumes:
+  pgdata:
+  evidence:
+  caddy_data:

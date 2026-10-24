@@ -32,7 +32,7 @@ export function subscribeAgentState(
 
   // Lazy-load socket.io-client only when the feature is enabled.
   import("socket.io-client").then(({ io }) => {
-    const WS_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+    const WS_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
     const socket = io(WS_URL, {
       path: "/ws/socket.io",
       transports: ["websocket"],

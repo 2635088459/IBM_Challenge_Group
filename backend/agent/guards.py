@@ -13,6 +13,8 @@ Priority guards for demo:
 """
 from __future__ import annotations
 
+import json
+
 from dataclasses import dataclass
 from typing import Any
 
@@ -127,6 +129,24 @@ def g_approval_exists(context: dict[str, Any]) -> GuardResult:
     return GuardResult.fail(
         f"G-approval failed: approval_status='{status}' — must be APPROVED before ACT"
     )
+
+
+# ── G-cbp-action: Agent cannot propose releasing a CBP hold ──────────────────
+
+CBP_RELEASE_ACTIONS = {"SET_CBP_RELEASED", "RELEASE_CBP_HOLD", "OVERRIDE_CBP_HOLD"}
+
+
+def g_cbp_release_not_proposed(action: dict[str, Any]) -> GuardResult:
+    """
+    Hard guard: no proposed action may release a CBP hold or touch cbp_released,
+    whatever the LLM was told (e.g. by text injected into a supplier document).
+    The only path is AgentFSM.set_cbp_released() on a verified CBP event.
+    """
+    if action.get("action_type") in CBP_RELEASE_ACTIONS or "cbp_released" in json.dumps(action).lower():
+        return GuardResult.fail(
+            "G-cbp: only an official CBP release event may set cbp_released — agents cannot propose it"
+        )
+    return GuardResult.ok("G-cbp: action does not attempt a CBP release")
 
 
 # ── G-doc-immutable: Agent cannot modify document field values ────────────────

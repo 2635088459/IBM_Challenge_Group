@@ -40,6 +40,15 @@ WATSONX_URL        = os.getenv("WATSONX_URL", "https://us-south.ml.cloud.ibm.com
 WATSONX_MODEL_ID   = os.getenv("WATSONX_MODEL_ID", "ibm/granite-13b-instruct-v2")
 
 
+# ── Roles the agent may route approvals to ───────────────────────────────────
+
+ROLES = {
+    "R2": "Warehouse Manager — confirms physical quantities received",
+    "R3": "Supplier / Exporter — confirms or corrects commercial documents",
+    "R4": "Trade Compliance Officer — compliance review, CBP holds",
+    "R5": "Customs Broker — filings and coordination with CBP",
+}
+
 # ── Prompts (shared across providers) ────────────────────────────────────────
 
 _REASON_SYSTEM = (
@@ -53,7 +62,8 @@ _REASON_USER = """\
 Shipment context:
 {context_json}
 
-Respond with a concise plain-text analysis (3-6 bullet points max).
+Respond with a concise analysis as 3-6 lines, each starting with "- ".
+Plain text only — no markdown, no bold, no headings.
 Analysis:"""
 
 _PLAN_SYSTEM = (
@@ -64,6 +74,8 @@ _PLAN_SYSTEM = (
     "Return ONLY a valid JSON array — no prose before or after."
 )
 
+_ROLES_TEXT = "\n".join(f"  {code}: {desc}" for code, desc in ROLES.items())
+
 _PLAN_USER = """\
 Analysis:
 {analysis}
@@ -72,6 +84,8 @@ Shipment context:
 {context_json}
 
 Each action object must have: action_type (string), description (string), role_required (string or null).
+role_required must be one of these role codes, or null if no human is needed:
+{roles}
 Example:
 [
   {{"action_type": "REQUEST_DOCUMENT", "description": "Request updated invoice from supplier", "role_required": "R3"}},
@@ -103,27 +117,21 @@ class _OpenAIProvider:
         )
         return response.choices[0].message.content.strip()
 
+    name, model = "openai", OPENAI_MODEL
+
     def reason(self, context: dict[str, Any]) -> str:
         user = _REASON_USER.format(
             context_json=json.dumps(context, indent=2, default=str)
         )
-        try:
-            return self._chat(_REASON_SYSTEM, user)
-        except Exception as exc:
-            logger.error("OpenAI reason() failed: %s — using mock", exc)
-            return _mock_reason(context)
+        return self._chat(_REASON_SYSTEM, user)
 
-    def plan(self, context: dict[str, Any], analysis: str) -> list[dict[str, Any]]:
+    def plan(self, context: dict[str, Any], analysis: str) -> list[dict[str, Any]] | None:
         user = _PLAN_USER.format(
             analysis=analysis,
             context_json=json.dumps(context, indent=2, default=str),
+            roles=_ROLES_TEXT,
         )
-        try:
-            raw = self._chat(_PLAN_SYSTEM, user)
-            return _parse_json_array(raw) or _mock_plan(context, analysis)
-        except Exception as exc:
-            logger.error("OpenAI plan() failed: %s — using mock", exc)
-            return _mock_plan(context, analysis)
+        return _parse_json_array(self._chat(_PLAN_SYSTEM, user))
 
 
 # ── watsonx.ai provider ───────────────────────────────────────────────────────
@@ -146,31 +154,25 @@ class _WatsonxProvider:
     def _complete(self, prompt: str) -> str:
         return self._model.generate_text(prompt=prompt).strip()
 
+    name, model = "watsonx", WATSONX_MODEL_ID
+
     def reason(self, context: dict[str, Any]) -> str:
         prompt = (
             _REASON_SYSTEM + "\n\n"
             + _REASON_USER.format(context_json=json.dumps(context, indent=2, default=str))
         )
-        try:
-            return self._complete(prompt)
-        except Exception as exc:
-            logger.error("watsonx reason() failed: %s — using mock", exc)
-            return _mock_reason(context)
+        return self._complete(prompt)
 
-    def plan(self, context: dict[str, Any], analysis: str) -> list[dict[str, Any]]:
+    def plan(self, context: dict[str, Any], analysis: str) -> list[dict[str, Any]] | None:
         prompt = (
             _PLAN_SYSTEM + "\n\n"
             + _PLAN_USER.format(
                 analysis=analysis,
                 context_json=json.dumps(context, indent=2, default=str),
+                roles=_ROLES_TEXT,
             )
         )
-        try:
-            raw = self._complete(prompt)
-            return _parse_json_array(raw) or _mock_plan(context, analysis)
-        except Exception as exc:
-            logger.error("watsonx plan() failed: %s — using mock", exc)
-            return _mock_plan(context, analysis)
+        return _parse_json_array(self._complete(prompt))
 
 
 # ── Shared helpers ────────────────────────────────────────────────────────────
@@ -272,6 +274,9 @@ class WatsonxClient:
 
     def __init__(self):
         self._provider = self._init_provider()
+        # What produced the latest reason()+plan() pair — shown in the UI so a
+        # dead key or bad response can never pass mock output off as live AI
+        self.last_source: dict[str, Any] = {}
 
     @staticmethod
     def _init_provider():
@@ -301,15 +306,38 @@ class WatsonxClient:
         logger.info("LLM running in mock mode (set OPENAI_API_KEY or WATSONX_API_KEY to use a live model)")
         return None  # mock path
 
+    def _fallback(self, step: str, error: str) -> None:
+        logger.error("%s %s() failed: %s — using mock", self._provider.name, step, error)
+        self.last_source["fallback"] = True
+        self.last_source.setdefault("errors", []).append(f"{step}: {error}")
+
     def reason(self, context: dict[str, Any]) -> str:
-        if self._provider is not None:
+        if self._provider is None:
+            self.last_source = {"provider": "mock", "model": None, "fallback": False}
+            return _mock_reason(context)
+        self.last_source = {"provider": self._provider.name, "model": self._provider.model, "fallback": False}
+        try:
             return self._provider.reason(context)
-        return _mock_reason(context)
+        except Exception as exc:
+            self._fallback("reason", str(exc)[:200])
+            return _mock_reason(context)
 
     def plan(self, context: dict[str, Any], analysis: str) -> list[dict[str, Any]]:
-        if self._provider is not None:
-            return self._provider.plan(context, analysis)
-        return _mock_plan(context, analysis)
+        if self._provider is None:
+            return _mock_plan(context, analysis)
+        try:
+            actions = self._provider.plan(context, analysis)
+        except Exception as exc:
+            self._fallback("plan", str(exc)[:200])
+            return _mock_plan(context, analysis)
+        if not actions:
+            self._fallback("plan", "response was not a JSON action list")
+            return _mock_plan(context, analysis)
+        # Never route approvals to a role that does not exist
+        for action in actions:
+            if action.get("role_required") not in ROLES:
+                action["role_required"] = None
+        return actions
 
 
 # ── Module-level singleton ────────────────────────────────────────────────────
@@ -332,3 +360,8 @@ def reason(context: dict[str, Any]) -> str:
 def plan(context: dict[str, Any], analysis: str) -> list[dict[str, Any]]:
     """Module-level shortcut — used by AgentRunner."""
     return get_client().plan(context, analysis)
+
+
+def last_source() -> dict[str, Any]:
+    """Provider/model behind the latest reason()+plan(), and whether it fell back to mock."""
+    return dict(get_client().last_source)

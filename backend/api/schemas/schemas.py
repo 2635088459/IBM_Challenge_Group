@@ -154,5 +154,7 @@ class AuditLogOut(_UUIDCoerceMixin):
     event: str
     details: Optional[dict[str, Any]]
     timestamp: datetime
+    prev_hash: Optional[str] = None
+    entry_hash: Optional[str] = None
 
     model_config = {"from_attributes": True}

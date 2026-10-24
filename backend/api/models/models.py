@@ -116,6 +116,9 @@ class AuditLog(Base):
     event = Column(Text, nullable=False)
     details = Column(_JSON, nullable=True)
     timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
+    # Tamper-evident chain, filled in by api/audit_chain.py on insert
+    prev_hash = Column(Text, nullable=True)
+    entry_hash = Column(Text, nullable=True)
 
     shipment = relationship("Shipment", back_populates="audit_logs")
 
@@ -130,3 +133,7 @@ class OutboxEntry(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     action = relationship("AgentAction", back_populates="outbox_entries")
+
+
+# Registers the before_flush listener that hash-chains every new AuditLog row
+import api.audit_chain  # noqa: E402,F401

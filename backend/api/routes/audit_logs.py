@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from db.database import get_db
 from api.models.models import AuditLog, Shipment
 from api.schemas.schemas import AuditLogOut
+from api.audit_chain import verify_chain
 
 router = APIRouter(prefix="/api/audit-logs", tags=["audit-logs"])
 
@@ -20,3 +21,12 @@ def get_audit_logs(shipment_id: str, db: Session = Depends(get_db)):
         .all()
     )
     return logs
+
+
+@router.get("/{shipment_id}/verify")
+def verify_audit_chain(shipment_id: str, db: Session = Depends(get_db)):
+    """Recompute the shipment's audit hash chain and report the first break, if any."""
+    shipment = db.query(Shipment).filter(Shipment.id == shipment_id).first()
+    if not shipment:
+        raise HTTPException(status_code=404, detail="Shipment not found")
+    return verify_chain(db.query(AuditLog).filter(AuditLog.shipment_id == shipment_id).all())

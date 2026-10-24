@@ -8,3 +8,7 @@
 **/__pycache__/
 **/node_modules/
 **/.next/
+
+# Deploy secrets (generated)
+deploy/Caddyfile
+deploy/.credentials

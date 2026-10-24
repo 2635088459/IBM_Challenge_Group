@@ -148,6 +148,13 @@ class AgentFSM:
             raise GuardFailedError("G1", result.reason)
         return self._do_transition(AgentState.OBSERVE, event="AGENT_STARTED", reason=result.reason)
 
+    def resume_from(self, state: AgentState) -> None:
+        """
+        Restore the state a previous run stopped in (loaded from agent_tasks.state).
+        Used when an external event, e.g. a resolved approval, wakes the agent up.
+        """
+        self.current_state = state
+
     def process_event(self, event: str, payload: dict[str, Any] | None = None) -> AgentState:
         """
         Drive the FSM forward based on an incoming event name.
@@ -196,7 +203,7 @@ class AgentFSM:
         if decision == PolicyDecision.DENY:
             raise PermissionDeniedError(
                 action=action.get("action_type", "UNKNOWN"),
-                reason="PolicyCheckEngine returned DENY (G9)",
+                reason=self._policy.last_reason,
             )
         return decision
 
@@ -261,7 +268,7 @@ class AgentFSM:
 
     def _handle_policy_deny(self, event: str) -> AgentState:
         """POLICY_CHECK → RECOVER: G9 hard block."""
-        return self._do_transition(AgentState.RECOVER, event=event, reason="G9: DENY — action blocked by policy engine")
+        return self._do_transition(AgentState.RECOVER, event=event, reason="DENY — plan blocked by guardrails, nothing executed")
 
     def _handle_act_done(self, event: str) -> AgentState:
         """ACT → VERIFY: action executed, verify outcome."""
@@ -282,6 +289,22 @@ class AgentFSM:
     def _handle_approval_received(self, event: str) -> AgentState:
         """WAIT_EVENT → OBSERVE: human approved, resume processing."""
         return self._do_transition(AgentState.OBSERVE, event=event, reason="Human approval received — resuming")
+
+    def _handle_approval_rejected(self, event: str) -> AgentState:
+        """WAIT_EVENT → RECOVER: human rejected the proposed plan."""
+        return self._do_transition(AgentState.RECOVER, event=event, reason="Human rejected the proposed plan")
+
+    def _handle_approved_analysis_loaded(self, event: str) -> AgentState:
+        """OBSERVE → REASON: reuse the analysis the human reviewed instead of calling the LLM again."""
+        return self._do_transition(AgentState.REASON, event=event, reason="Reusing the analysis the human reviewed — no new LLM call")
+
+    def _handle_approved_plan_loaded(self, event: str) -> AgentState:
+        """REASON → PLAN: reuse the plan the human approved."""
+        return self._do_transition(AgentState.PLAN, event=event, reason="Reusing the human-approved plan")
+
+    def _handle_policy_approved(self, event: str) -> AgentState:
+        """POLICY_CHECK → ACT: G-approval passed — plan approved by a human and unchanged since."""
+        return self._do_transition(AgentState.ACT, event=event, reason="G-approval: plan approved by human, payload hash verified")
 
     def _handle_missing_document(self, event: str) -> AgentState:
         """OBSERVE → COLLECT_DATA: required document missing."""
@@ -330,11 +353,15 @@ class AgentFSM:
         "POLICY_ALLOW":              _handle_policy_allow,
         "POLICY_APPROVAL_REQUIRED":  _handle_policy_approval_required,
         "POLICY_DENY":               _handle_policy_deny,
+        "POLICY_APPROVED":           _handle_policy_approved,
         "ACT_DONE":                  _handle_act_done,
         "VERIFY_PASS":               _handle_verify_pass,
         "VERIFY_FAIL":               _handle_verify_fail,
         "ESCALATE_DONE":             _handle_escalate_done,
         "APPROVAL_RECEIVED":         _handle_approval_received,
+        "APPROVAL_REJECTED":         _handle_approval_rejected,
+        "APPROVED_ANALYSIS_LOADED":  _handle_approved_analysis_loaded,
+        "APPROVED_PLAN_LOADED":      _handle_approved_plan_loaded,
         "MISSING_DOCUMENT":          _handle_missing_document,
         "COLLECT_DONE":              _handle_collect_done,
         "CBP_HOLD_RECEIVED":         _handle_cbp_hold_received,

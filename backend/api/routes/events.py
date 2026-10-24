@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -5,6 +6,9 @@ from sqlalchemy.exc import IntegrityError
 from db.database import get_db
 from api.models.models import Event, Shipment, AuditLog
 from api.schemas.schemas import EventIn, EventOut
+from api.agent_store import handle_cbp_event
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/events", tags=["events"])
 
@@ -58,4 +62,12 @@ def ingest_event(body: EventIn, db: Session = Depends(get_db)):
             detail=f"Event '{body.event_id}' already processed (concurrent insert)",
         )
 
+    # The event is stored; a failure while the agent reacts must not undo that
+    try:
+        handle_cbp_event(db, event)
+    except Exception:
+        logger.exception("Agent failed to handle event %s", body.event_id)
+        db.rollback()
+
+    db.refresh(event)
     return event

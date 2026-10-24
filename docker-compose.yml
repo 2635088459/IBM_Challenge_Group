@@ -64,9 +64,6 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
-    environment:
-      # Inside Docker the frontend talks to the api service by name
-      NEXT_PUBLIC_API_URL: http://api:8000
     depends_on:
       - api
 

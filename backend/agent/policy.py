@@ -20,6 +20,7 @@ from agent.guards import (
     g7_low_risk,
     g8_approval_required,
     g9_deny,
+    g_cbp_release_not_proposed,
     g_document_immutable,
 )
 
@@ -35,42 +36,53 @@ class PolicyCheckEngine:
     Deterministic rule-based policy engine.
 
     Evaluation order (first match wins):
-      1. G9  — if any deny condition is met → DENY
-      2. G-doc-immutable — if action modifies document fields → DENY
-      3. G8  — if risk in medium range → APPROVAL_REQUIRED
-      4. G7  — if risk is low → ALLOW
-      5. Default → APPROVAL_REQUIRED (fail-safe)
+      1. G-doc-immutable — if action modifies document fields → DENY
+      2. G-cbp — if action tries to release a CBP hold → DENY
+      3. G9  — if this action's risk is high (or force_deny) → DENY
+      4. G8  — if risk in medium range → APPROVAL_REQUIRED
+      5. G7  — if risk is low → ALLOW
+      6. Default → APPROVAL_REQUIRED (fail-safe)
+
+    The reason for the last decision is kept in `last_reason` for the audit trail.
     """
+
+    last_reason: str = ""
 
     def evaluate(
         self,
         action: dict[str, Any],
         context: dict[str, Any],
     ) -> PolicyDecision:
-        # 1. Hard deny checks
-        g9_result = g9_deny(context)
+        # 1–2. Hard guards on the action itself
+        for hard_guard in (g_document_immutable, g_cbp_release_not_proposed):
+            result = hard_guard(action)
+            if not result.passed:
+                self.last_reason = result.reason
+                return PolicyDecision.DENY
+
+        # Score this action on its own — never reuse another action's score
+        scored = {**context, "risk_score": self._compute_risk(action, context)}
+
+        # 3. G9 — high risk
+        g9_result = g9_deny(scored)
         if g9_result.passed:
+            self.last_reason = g9_result.reason
             return PolicyDecision.DENY
 
-        doc_result = g_document_immutable(action)
-        if not doc_result.passed:
-            return PolicyDecision.DENY
-
-        # 2. Compute risk score from context (or action override)
-        risk_score = self._compute_risk(action, context)
-        context["risk_score"] = risk_score  # write back for guards
-
-        # 3. G8 — medium risk
-        g8_result = g8_approval_required(context)
+        # 4. G8 — medium risk
+        g8_result = g8_approval_required(scored)
         if g8_result.passed:
+            self.last_reason = g8_result.reason
             return PolicyDecision.APPROVAL_REQUIRED
 
-        # 4. G7 — low risk
-        g7_result = g7_low_risk(context)
+        # 5. G7 — low risk
+        g7_result = g7_low_risk(scored)
         if g7_result.passed:
+            self.last_reason = g7_result.reason
             return PolicyDecision.ALLOW
 
-        # 5. Default fail-safe: require approval
+        # 6. Default fail-safe: require approval
+        self.last_reason = "Default fail-safe: approval required"
         return PolicyDecision.APPROVAL_REQUIRED
 
     # ── Risk scoring ──────────────────────────────────────────────────────────
@@ -92,8 +104,8 @@ class PolicyCheckEngine:
           +0.2  if any missing_documents present
           -0.2  if all_documents_verified=True (reduces uncertainty)
 
-        If context["risk_score"] is already explicitly set by the LLM or caller, use it directly.
-        This allows tests and the LLM to supply a precise score without recomputation.
+        If context["risk_score"] is already explicitly set by a test fixture, use it directly.
+        The API rejects risk_score from callers (see api/routes/agent_run.py).
         """
         # If risk_score was explicitly provided, honour it (LLM output, test fixture, etc.)
         if "risk_score" in context:

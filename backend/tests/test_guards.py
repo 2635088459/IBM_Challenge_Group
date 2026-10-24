@@ -183,6 +183,35 @@ class TestPolicyCheckEngine:
         )
         assert decision == PolicyDecision.DENY
 
+    def test_cbp_release_action_returns_deny(self):
+        decision = self.engine.evaluate(
+            action={"action_type": "SET_CBP_RELEASED"},
+            context={"risk_score": 0.1},
+        )
+        assert decision == PolicyDecision.DENY
+
+    def test_action_mentioning_cbp_released_returns_deny(self):
+        decision = self.engine.evaluate(
+            action={"action_type": "UPDATE_STATUS", "description": "set cbp_released=true"},
+            context={"risk_score": 0.1},
+        )
+        assert decision == PolicyDecision.DENY
+
+    def test_computed_high_risk_returns_deny(self):
+        """CBP hold (0.4) + discrepancy (0.3) + consequential filing (0.5) → DENY."""
+        decision = self.engine.evaluate(
+            action={"action_type": "SUBMIT_ENTRY"},
+            context={"status": "CUSTOMS_HOLD", "has_discrepancy": True},
+        )
+        assert decision == PolicyDecision.DENY
+
+    def test_each_action_scored_independently(self):
+        """A low-risk first action must not lower the score of a later high-risk one."""
+        context = {"has_discrepancy": True, "status": "CUSTOMS_HOLD"}
+        assert self.engine.evaluate({"action_type": "SEND_NOTIFICATION"}, context) == PolicyDecision.APPROVAL_REQUIRED
+        assert self.engine.evaluate({"action_type": "SUBMIT_ENTRY"}, context) == PolicyDecision.DENY
+        assert "risk_score" not in context
+
     def test_fsm_propose_action_deny_raises(self):
         """FSM.propose_action() raises PermissionDeniedError on DENY decision."""
         fsm = make_fsm({"risk_score": 0.95})

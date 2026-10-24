@@ -34,7 +34,7 @@ function fmtTime(iso: string) {
 
 export default function AgentStateTimeline({ shipmentId, initialEvents = [] }: Props) {
   const [events, setEvents] = useState<AgentStateUpdate[]>(initialEvents);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const unsub = subscribeAgentState(shipmentId, (update) => {
@@ -43,22 +43,23 @@ export default function AgentStateTimeline({ shipmentId, initialEvents = [] }: P
     return unsub;
   }, [shipmentId]);
 
-  // Auto-scroll to bottom on new event
+  // Keep the newest event in view — scroll the list only, never the page
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const list = listRef.current;
+    if (list) list.scrollTop = list.scrollHeight;
   }, [events]);
 
   if (!events.length) {
     return (
       <p className="text-xs text-gray-400 italic py-2">
         Click <span className="font-medium text-gray-500">▶ Run Agent</span> above to start the agent.
-        Its state transitions will appear here after the run.
+        Its state transitions will appear here and are kept across refreshes.
       </p>
     );
   }
 
   return (
-    <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+    <div ref={listRef} className="space-y-2 max-h-72 overflow-y-auto pr-1">
       {events.map((ev, i) => (
         <div key={i} className="flex items-start gap-3">
           {/* Dot */}
@@ -77,7 +78,6 @@ export default function AgentStateTimeline({ shipmentId, initialEvents = [] }: P
           </div>
         </div>
       ))}
-      <div ref={bottomRef} />
     </div>
   );
 }

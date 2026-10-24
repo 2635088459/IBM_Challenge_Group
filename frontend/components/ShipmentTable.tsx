@@ -7,7 +7,8 @@ import useSWR from "swr";
 import { fetcher, ShipmentListItem } from "@/lib/api";
 import StatusBadge from "./StatusBadge";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+// Same-origin by default: next.config.ts proxies /api/* to the backend
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 function timeAgo(isoDate: string): string {
   const diff = Date.now() - new Date(isoDate).getTime();
@@ -38,7 +39,7 @@ export default function ShipmentTable() {
     return (
       <div className="text-center py-12 text-red-500 text-sm">
         Failed to load shipments. Is the API running at{" "}
-        <code>{API_URL}</code>?
+        <code>{API_URL || "/api (proxied to the backend)"}</code>?
       </div>
     );
   }

@@ -3,12 +3,13 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import Link from "next/link";
 import useSWR from "swr";
 import { fetcher, Approval, ShipmentListItem } from "@/lib/api";
 import ApprovalCard from "@/components/ApprovalCard";
+import SiteHeader from "@/components/SiteHeader";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+// Same-origin by default: next.config.ts proxies /api/* to the backend
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 const ROLES = [
   { value: "ALL",  label: "All Roles" },
@@ -56,16 +57,7 @@ export default function ApprovalsPage() {
   return (
     <main className="min-h-screen bg-gray-50">
       {/* Nav */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900">AI Customs Clearance</h1>
-          <p className="text-xs text-gray-400">Autonomous agent — synthetic demo data only</p>
-        </div>
-        <nav className="flex gap-4 text-sm">
-          <Link href="/" className="text-gray-600 hover:text-blue-600">Shipments</Link>
-          <Link href="/approvals" className="font-semibold text-blue-600">Approvals</Link>
-        </nav>
-      </header>
+      <SiteHeader active="approvals" />
 
       <div className="max-w-4xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-6 flex-wrap gap-4">

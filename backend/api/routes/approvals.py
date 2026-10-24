@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -5,6 +6,9 @@ from sqlalchemy.orm import Session
 from db.database import get_db
 from api.models.models import Approval, AuditLog
 from api.schemas.schemas import ApprovalIn, ApprovalOut, ApprovalPatch
+from api.agent_store import resume_if_ready
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/approvals", tags=["approvals"])
 
@@ -85,5 +89,14 @@ def update_approval(approval_id: str, body: ApprovalPatch, db: Session = Depends
         ))
 
     db.commit()
+
+    # Wake the agent if this was the last open approval for its plan.  The
+    # decision above is already committed, so a failed resume must not undo it.
+    try:
+        resume_if_ready(db, approval)
+    except Exception:
+        logger.exception("Agent resume failed after approval %s", approval_id)
+        db.rollback()
+
     db.refresh(approval)
     return approval
